@@ -1,0 +1,345 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String?
+  password        String
+  role            UserRole @default(USER)
+  status          UserStatus @default(ACTIVE)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  listings        Listing[]
+  accounts        PlatformAccount[]
+  subscriptions   Subscription[]
+  leads           Lead[]
+  analytics       Analytics[]
+  
+  @@map("users")
+}
+
+model Listing {
+  id              String      @id @default(cuid())
+  title           String
+  description     String
+  category        Category
+  price           Float?
+  location        String?
+  latitude        Float?
+  longitude       Float?
+  status          ListingStatus @default(DRAFT)
+  userId          String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media           ListingMedia[]
+  repostJobs      RepostJob[]
+  platformPosts   PlatformPost[]
+  leads           Lead[]
+  attributes      ListingAttribute[]
+  
+  @@map("listings")
+}
+
+model ListingMedia {
+  id          String  @id @default(cuid())
+  listingId   String
+  url         String
+  type        MediaType
+  altText     String?
+  order       Int     @default(0)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  listing     Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  @@map("listing_media")
+}
+
+model ListingAttribute {
+  id          String  @id @default(cuid())
+  listingId   String
+  key         String
+  value       String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  listing     Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  
+  @@map("listing_attributes")
+}
+
+model Platform {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  type        PlatformType
+  baseUrl     String?
+  apiUrl      String?
+  isActive    Boolean     @default(true)
+  config      Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  accounts    PlatformAccount[]
+  posts       PlatformPost[]
+  categories  PlatformCategory[]
+  repostJobs  RepostJob[]
+  
+  @@map("platforms")
+}
+
+model PlatformCategory {
+  id          String  @id @default(cuid())
+  platformId  String
+  name        String
+  externalId  String?
+  config      Json?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  platform    Platform @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  
+  @@unique([platformId, name])
+  @@map("platform_categories")
+}
+
+model PlatformAccount {
+  id          String            @id @default(cuid())
+  userId      String
+  platformId  String
+  username    String?
+  email       String?
+  token       String?
+  refreshToken String?
+  status      AccountStatus     @default(ACTIVE)
+  config      Json?
+  lastSyncAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform    Platform          @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  posts       PlatformPost[]
+  repostJobs  RepostJob[]
+  
+  @@unique([userId, platformId])
+  @@map("platform_accounts")
+}
+
+model RepostJob {
+  id              String        @id @default(cuid())
+  listingId       String
+  platformId      String
+  accountId       String?
+  status          JobStatus     @default(PENDING)
+  scheduledAt     DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  attempts        Int           @default(0)
+  maxAttempts     Int           @default(3)
+  errorMessage    String?
+  config          Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  listing         Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  platform        Platform      @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  account         PlatformAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  posts           PlatformPost[]
+  
+  @@map("repost_jobs")
+}
+
+model PlatformPost {
+  id              String        @id @default(cuid())
+  listingId       String
+  platformId      String
+  accountId       String?
+  repostJobId     String?
+  externalId      String?
+  url             String?
+  status          PostStatus    @default(PENDING)
+  postedAt        DateTime?
+  expiresAt       DateTime?
+  views           Int           @default(0)
+  clicks          Int           @default(0)
+  engagement      Int           @default(0)
+  config          Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  listing         Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  platform        Platform      @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  account         PlatformAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  repostJob       RepostJob?    @relation(fields: [repostJobId], references: [id], onDelete: SetNull)
+  leads           Lead[]
+  
+  @@map("platform_posts")
+}
+
+model Lead {
+  id              String        @id @default(cuid())
+  listingId       String
+  platformPostId  String?
+  userId          String?
+  platformId      String
+  contactInfo     String?
+  message         String?
+  source          String?
+  status          LeadStatus    @default(NEW)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  listing         Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  platformPost    PlatformPost? @relation(fields: [platformPostId], references: [id], onDelete: SetNull)
+  user            User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@map("leads")
+}
+
+model Subscription {
+  id              String            @id @default(cuid())
+  userId          String
+  planId          String
+  status          SubscriptionStatus @default(ACTIVE)
+  startDate       DateTime          @default(now())
+  endDate         DateTime?
+  lastBillingAt   DateTime?
+  nextBillingAt   DateTime?
+  quota           Int?
+  quotaUsed       Int               @default(0)
+  config          Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("subscriptions")
+}
+
+model Analytics {
+  id              String    @id @default(cuid())
+  userId          String
+  date            DateTime
+  listingsPosted  Int       @default(0)
+  totalViews      Int       @default(0)
+  totalClicks     Int       @default(0)
+  totalLeads      Int       @default(0)
+  successRate     Float     @default(0)
+  revenue         Float     @default(0)
+  platformData    Json?
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@map("analytics")
+}
+
+// Enums
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  EXPIRED
+  DELETED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum PlatformType {
+  SOCIAL_MEDIA
+  MARKETPLACE
+  CLASSIFIEDS
+  FORUM
+  MESSAGING
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+  ERROR
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  RETRYING
+}
+
+enum PostStatus {
+  PENDING
+  POSTED
+  FAILED
+  EXPIRED
+  DELETED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  SPAM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+enum Category {
+  PROPERTY
+  VEHICLES
+  MOBILES_ELECTRONICS
+  JOBS
+  SERVICES
+  RENTALS
+  EDUCATION
+  PETS
+  GENERAL_SALES
+}

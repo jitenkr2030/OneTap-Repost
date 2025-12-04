@@ -1,0 +1,35 @@
+
+> repost-worker@1.0.0 dev
+> tsx watch index.ts
+
+Starting Repost Worker...
+Repost Worker started successfully
+Processing pending jobs...
+PrismaClientKnownRequestError: 
+Invalid `prisma.repostJob.findMany()` invocation in
+/home/z/my-project/mini-services/repost-worker/index.ts:233:41
+
+  230 async processPendingJobs() {
+  231   console.log('Processing pending jobs...')
+  232   
+→ 233   const jobs = await prisma.repostJob.findMany(
+The table `main.repost_jobs` does not exist in the current database.
+    at $n.handleRequestError (/home/z/my-project/mini-services/repost-worker/node_modules/@prisma/client/runtime/library.js:121:7315)
+    at $n.handleAndLogRequestError (/home/z/my-project/mini-services/repost-worker/node_modules/@prisma/client/runtime/library.js:121:6623)
+    at $n.request (/home/z/my-project/mini-services/repost-worker/node_modules/@prisma/client/runtime/library.js:121:6307)
+    at async l (/home/z/my-project/mini-services/repost-worker/node_modules/@prisma/client/runtime/library.js:130:9633)
+    at async JobScheduler.processPendingJobs (/home/z/my-project/mini-services/repost-worker/index.ts:233:18)
+    at async RepostWorker.start (/home/z/my-project/mini-services/repost-worker/index.ts:432:5) {
+  code: 'P2021',
+  clientVersion: '5.22.0',
+  meta: { modelName: 'RepostJob', table: 'main.repost_jobs' }
+}
+Processing pending jobs...
+Found 0 pending jobs
+Processing pending jobs...
+Processing retry jobs...
+Found 0 pending jobs
+Found 0 retry jobs
+Received SIGTERM, shutting down gracefully...
+Stopping Repost Worker...
+Repost Worker stopped
